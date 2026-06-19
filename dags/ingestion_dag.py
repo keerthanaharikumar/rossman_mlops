@@ -30,12 +30,7 @@ def load_store():
         for _,row in df.iterrows():
              hook.run(
                    """
-                insert into store (Store,StoreType,Assortment,Competiti      batch['Promo'] = batch['Promo'].map({1: True, 0: False})
-      batch['Open'] = batch['Open'].map({1: True, 0: False})
-      batch['SchoolHoliday'] = batch['SchoolHoliday'].map({1: True, 0: False})
-      batch['Date'] = batch['Date'].dt.date
-      
-onDistance,CompetitionOpenSinceMonth, CompetitionOpenSinceYear,Promo2,Promo2SinceWeek,Promo2SinceYear,PromoInterval)
+                insert into store (Store,StoreType,Assortment,CompetitionDistance,CompetitionOpenSinceMonth, CompetitionOpenSinceYear,Promo2,Promo2SinceWeek,Promo2SinceYear,PromoInterval)
                 values(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
                 on conflict(Store) do nothing
                 """,
@@ -168,8 +163,21 @@ with DAG (
                     last_load_date date
                 );
 
+                CREATE TABLE IF NOT EXISTS model_metrics (
+                 id SERIAL PRIMARY KEY,
+                model_name VARCHAR,
+                rmse FLOAT,
+                mae FLOAT,
+                r2 FLOAT,
+                train_size INT,
+                trained_at TIMESTAMP,
+                data_up_to DATE
+                );
+                
             """
     )
+    
+
 
     load_store_task=PythonOperator(
           task_id='load_store',

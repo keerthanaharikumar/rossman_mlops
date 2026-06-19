@@ -2,7 +2,8 @@
 version: '3.9'
 x-airflow-common:
   &airflow-common
-  image: apache/airflow:2.8.1
+  build: .
+  # image: apache/airflow:2.8.1
   environment:
     &airflow-common-env
     AIRFLOW__CORE__EXECUTOR: LocalExecutor
@@ -10,12 +11,13 @@ x-airflow-common:
     AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: 'true'
     AIRFLOW__API__AUTH_BACKENDS: 'airflow.api.auth.backend.basic_auth,airflow.api.auth.backend.session'
     AIRFLOW__CORE__FERNET_KEY: ${AIRFLOW__CORE__FERNET_KEY}
-    _PIP_ADDITIONAL_REQUIREMENTS: ""
+    # _PIP_ADDITIONAL_REQUIREMENTS: "scikit-learn xgboost lightgbm"
   volumes:
     - ./dags:/opt/airflow/dags
     - ./logs:/opt/airflow/logs
     - ./plugins:/opt/airflow/plugins
     - ./data:/opt/airflow/data
+    - ./models:/opt/airflow/models
   user: "${AIRFLOW_UID}:0"
 
 

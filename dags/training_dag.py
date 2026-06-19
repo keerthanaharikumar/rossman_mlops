@@ -2,9 +2,15 @@ from airflow import DAG
 from airflow.providers.postgres.operators.postgres import PostgresOperator
 from airflow.providers.postgres.hooks.postgres import PostgresHook
 from airflow.operators.python import PythonOperator
+from sklearn.linear_model import LinearRegression
+from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
 import pandas as pd
 from datetime import datetime
 import numpy as np
+import xgboost as xgb
+import lightgbm as lgb
+import pickle
+import os
 import calendar
 
 default_args={
@@ -16,7 +22,26 @@ default_args={
 def engineer_features():
     hook=PostgresHook(postgres_conn_id='rossmann_postgres')
     sql="""
-        select * from sales_raw join store on sales_raw.store=store.store
+                SELECT 
+            s.store,
+            s.sales_date,
+            s.sales,
+            s.customers,
+            s.open,
+            s.promo,
+            s.stateholiday,
+            s.schoolholiday,
+            st.storetype,
+            st.assortment,
+            st.competitiondistance,
+            st.competitionopensincemonth,
+            st.competitionopensinceyear,
+            st.promo2,
+            st.promo2sinceweek,
+            st.promo2sinceyear,
+            st.promointerval
+        FROM sales_raw s
+        JOIN store st ON s.store = st.store
         """
     df=hook.get_pandas_df(sql)
     df['sales_date'] = pd.to_datetime(df['sales_date'])
@@ -82,6 +107,164 @@ def split_data(**context):
 
 
 
+def train_linear():
+    hook=PostgresHook(postgres_conn_id='rossmann_postgres')
+    train=hook.get_pandas_df('select * from train_data')
+    test=hook.get_pandas_df('select * from test_data')
+    feature_cols = [
+        'store', 'promo', 'stateholiday', 'schoolholiday',
+        'storetype', 'assortment', 'competitiondistance',
+        'day_of_week', 'month', 'year', 'is_weekend',
+        'promo_x_schoolholiday', 'competition_open_months',
+        'is_promo2_active', 'sales_lag_7', 'sales_lag_28'
+    ]
+
+    X_train = train[feature_cols]
+    y_train = train['sales']
+    X_test  = test[feature_cols]
+    y_test  = test['sales']
+
+    X_train = train[feature_cols].fillna(0)
+    X_test  = test[feature_cols].fillna(0)
+
+    model=LinearRegression()
+    model.fit(X_train,y_train)
+
+    preds=model.predict(X_test)
+
+    rmse = np.sqrt(mean_squared_error(y_test, preds))
+    mae  = mean_absolute_error(y_test, preds)
+    r2   = r2_score(y_test, preds)
+
+    os.makedirs('/opt/airflow/models', exist_ok=True)
+    with open('/opt/airflow/models/linear_regression.pkl', 'wb') as f:
+        pickle.dump(model, f)
+    
+    print(f"Linear → RMSE: {rmse:.2f}, MAE: {mae:.2f}, R²: {r2:.4f}")
+
+    return {
+        'model': 'linear_regression',
+        'rmse': round(rmse, 2),
+        'mae':  round(mae, 2),
+        'r2':   round(r2, 4),
+        'trained_at': str(datetime.now()),
+        'train_size': len(X_train)
+    }
+
+
+
+def train_xgboost():
+    hook=PostgresHook(postgres_conn_id='rossmann_postgres')
+    train=hook.get_pandas_df('select * from train_data')
+    test=hook.get_pandas_df('select * from test_data')
+    feature_cols = [
+        'store', 'promo', 'stateholiday', 'schoolholiday',
+        'storetype', 'assortment', 'competitiondistance',
+        'day_of_week', 'month', 'year', 'is_weekend',
+        'promo_x_schoolholiday', 'competition_open_months',
+        'is_promo2_active', 'sales_lag_7', 'sales_lag_28'
+    ]
+
+    X_train = train[feature_cols]
+    y_train = train['sales']
+    X_test  = test[feature_cols]
+    y_test  = test['sales']
+
+
+    model = xgb.XGBRegressor(n_estimators=100, learning_rate=0.1, max_depth=6, random_state=42)
+    model.fit(X_train,y_train)
+
+    preds=model.predict(X_test)
+
+    rmse = np.sqrt(mean_squared_error(y_test, preds))
+    mae  = mean_absolute_error(y_test, preds)
+    r2   = r2_score(y_test, preds)
+
+    os.makedirs('/opt/airflow/models', exist_ok=True)
+    with open('/opt/airflow/models/xgboost.pkl', 'wb') as f:
+        pickle.dump(model, f)
+    
+    print(f"XGBoost → RMSE: {rmse:.2f}, MAE: {mae:.2f}, R²: {r2:.4f}")
+
+    return {
+        'model': 'XGBoost',
+        'rmse': round(rmse, 2),
+        'mae':  round(mae, 2),
+        'r2':   round(r2, 4),
+        'trained_at': str(datetime.now()),
+        'train_size': len(X_train)
+    }
+
+
+
+def train_lightgbm():
+    hook=PostgresHook(postgres_conn_id='rossmann_postgres')
+    train=hook.get_pandas_df('select * from train_data')
+    test=hook.get_pandas_df('select * from test_data')
+    feature_cols = [
+        'store', 'promo', 'stateholiday', 'schoolholiday',
+        'storetype', 'assortment', 'competitiondistance',
+        'day_of_week', 'month', 'year', 'is_weekend',
+        'promo_x_schoolholiday', 'competition_open_months',
+        'is_promo2_active', 'sales_lag_7', 'sales_lag_28'
+    ]
+
+    X_train = train[feature_cols]
+    y_train = train['sales']
+    X_test  = test[feature_cols]
+    y_test  = test['sales']
+
+    model = lgb.LGBMRegressor(n_estimators=100, learning_rate=0.1, max_depth=6, random_state=42)
+    model.fit(X_train,y_train)
+
+    preds=model.predict(X_test)
+
+    rmse = np.sqrt(mean_squared_error(y_test, preds))
+    mae  = mean_absolute_error(y_test, preds)
+    r2   = r2_score(y_test, preds)
+
+    os.makedirs('/opt/airflow/models', exist_ok=True)
+    with open('/opt/airflow/models/lightgbm.pkl', 'wb') as f:
+        pickle.dump(model, f)
+    
+    print(f"LightGBM → RMSE: {rmse:.2f}, MAE: {mae:.2f}, R²: {r2:.4f}")
+
+    return {
+        'model': 'LightGBM',
+        'rmse': round(rmse, 2),
+        'mae':  round(mae, 2),
+        'r2':   round(r2, 4),
+        'trained_at': str(datetime.now()),
+        'train_size': len(X_train)
+    }
+
+
+def save_metrics(**context):
+    hook=PostgresHook(postgres_conn_id='rossmann_postgres')
+    linear_matrix= context['ti'].xcom_pull(task_ids='train_linear')
+    xgboost_matrix= context['ti'].xcom_pull(task_ids='train_xgboost')
+    lightgbm_matrix= context['ti'].xcom_pull(task_ids='train_lightgbm')
+    result = hook.get_first("SELECT MAX(sales_date) FROM features")
+    data_up_to = str(result[0])
+    
+    for metrics in [linear_matrix, xgboost_matrix, lightgbm_matrix]:
+        hook.run("""
+            INSERT INTO model_metrics 
+                (model_name, rmse, mae, r2, train_size, trained_at, data_up_to)
+            VALUES (%s, %s, %s, %s, %s, %s, %s)
+        """, parameters=(
+            metrics['model'],
+            metrics['rmse'],
+            metrics['mae'],
+            metrics['r2'],
+            metrics['train_size'],
+            metrics['trained_at'],
+            data_up_to
+        ))
+    
+    print(f"Saved metrics for 3 models, data_up_to={data_up_to}")
+    
+
 
 
 
@@ -103,5 +286,28 @@ with DAG (
           python_callable=split_data
     )
 
-    engineer_feature_task >> split_data_task
+    train_linear_task=PythonOperator(
+          task_id='train_linear',
+          python_callable=train_linear
+    )
+
+
+    train_xgboost_task=PythonOperator(
+          task_id='train_xgboost',
+          python_callable=train_xgboost
+    )
+
+
+    train_lightgbm_task=PythonOperator(
+          task_id='train_lightgbm',
+          python_callable=train_lightgbm
+    )
+
+    save_metrics_task = PythonOperator(
+        task_id='save_metrics',
+        python_callable=save_metrics,
+        
+    )
+
+    engineer_feature_task >> split_data_task >> [train_linear_task, train_xgboost_task, train_lightgbm_task] >> save_metrics_task
     

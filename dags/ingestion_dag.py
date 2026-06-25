@@ -173,6 +173,16 @@ with DAG (
                 trained_at TIMESTAMP,
                 data_up_to DATE
                 );
+
+                CREATE TABLE IF NOT EXISTS predictions (
+                id SERIAL PRIMARY KEY,
+                model_name VARCHAR,
+                store INT,
+                sales_date DATE,
+                actual_sales FLOAT,
+                predicted_sales FLOAT,
+                trained_at TIMESTAMP
+                );
                 
             """
     )

@@ -97,8 +97,8 @@ def split_data(**context):
      cutoff = df['sales_date'].max() - pd.Timedelta(weeks=6)
      train = df[df['sales_date'] <= cutoff]
      test  = df[df['sales_date'] >  cutoff]
-     train = train.drop(columns=['sales_date'])
-     test  = test.drop(columns=['sales_date'])
+    #  train = train.drop(columns=['sales_date'])
+    #  test  = test.drop(columns=['sales_date'])
      engine=hook.get_sqlalchemy_engine()
      train.to_sql('train_data',engine,if_exists='replace',index=False)
      test.to_sql('test_data',engine,if_exists='replace',index=False)
@@ -131,6 +131,19 @@ def train_linear():
     model.fit(X_train,y_train)
 
     preds=model.predict(X_test)
+
+ 
+    pred_df = pd.DataFrame({
+        'model_name': 'linear_regression',
+        'store': test['store'].values,
+        'sales_date': test['sales_date'].values,
+        'actual_sales': y_test.values,
+        'predicted_sales': preds,
+        'trained_at': str(datetime.now())
+    })
+
+    engine = hook.get_sqlalchemy_engine()
+    pred_df.to_sql('predictions', engine, if_exists='append', index=False)
 
     rmse = np.sqrt(mean_squared_error(y_test, preds))
     mae  = mean_absolute_error(y_test, preds)
@@ -176,6 +189,18 @@ def train_xgboost():
 
     preds=model.predict(X_test)
 
+    pred_df = pd.DataFrame({
+        'model_name': 'XGBoost',
+        'store': test['store'].values,
+        'sales_date': test['sales_date'].values,
+        'actual_sales': y_test.values,
+        'predicted_sales': preds,
+        'trained_at': str(datetime.now())
+    })
+    
+    engine = hook.get_sqlalchemy_engine()
+    pred_df.to_sql('predictions', engine, if_exists='append', index=False)
+
     rmse = np.sqrt(mean_squared_error(y_test, preds))
     mae  = mean_absolute_error(y_test, preds)
     r2   = r2_score(y_test, preds)
@@ -218,6 +243,21 @@ def train_lightgbm():
     model.fit(X_train,y_train)
 
     preds=model.predict(X_test)
+
+
+
+    pred_df = pd.DataFrame({
+        'model_name': 'LightGBM',
+        'store': test['store'].values,
+        'sales_date': test['sales_date'].values,
+        'actual_sales': y_test.values,
+        'predicted_sales': preds,
+        'trained_at': str(datetime.now())
+    })
+    
+    engine = hook.get_sqlalchemy_engine()
+    pred_df.to_sql('predictions', engine, if_exists='append', index=False)
+
 
     rmse = np.sqrt(mean_squared_error(y_test, preds))
     mae  = mean_absolute_error(y_test, preds)

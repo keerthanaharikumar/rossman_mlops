@@ -91,6 +91,23 @@ services:
       postgres-airflow:
         condition: service_healthy
 
+  streamlit:
+    build:
+      context: ./streamlit_app
+      dockerfile: Dockerfile
+    ports:
+     - "8501:8501"
+    volumes:
+      - ./streamlit_app:/app
+    environment:
+      - DB_HOST=postgres-rossmann
+      - DB_PORT=5432
+      - DB_NAME=${ROSSMANN_DB_NAME}
+      - DB_USER=${ROSSMANN_DB_USER}
+      - DB_PASSWORD=${ROSSMANN_DB_PASSWORD}
+    depends_on:
+      - postgres-rossmann
+
 
 volumes:
   airflow-db-volume:

@@ -36,14 +36,16 @@ flowchart TD
 
 ---
 
+## This project has :
 
  Apache Airflow : Has the two pipelines for handles scheduling, retries.
  Docker Compose :Packages all 7 services so the whole project starts with one command 
  PostgreSQL : Two instances ,one for Airflow internals and  one for the project data 
  pgweb :  UI to inspect the Postgres tables directly 
- Linear Regression / XGBoost / LightGBM :Three regression models trained in parallel |
+ Linear Regression / XGBoost / LightGBM :Three regression models trained in parallel 
  pandas / numpy : For Data wrangling and feature engineering 
  Streamlit + Plotly : For Interactive dashboard for comparing models and forcasting
+
 ---
 
 ## Pipeline:
@@ -83,7 +85,7 @@ The whole data set was ingested after 24 ingestion and training triggers.
 
 - XGBoost achieved the best performance on the full dataset (R² = 0.92, RMSE = 1072), 
   narrowly beating LightGBM (R² = 0.91, RMSE = 1097). Linear Regression also was not that bad as a baseline (R² = 0.89).This suggests that the engineered features gave good predictive power
-  ![](/home/keerthana/Desktop/rossman/newplot(1).png)
+  ![](pics/newplot(1).png)
 
 - The metrics-over-time chart is deliberately noisy rather than a smooth improvement 
   curve. Since the test set shifts to a different 6-week window on each run, some 
@@ -92,14 +94,14 @@ The whole data set was ingested after 24 ingestion and training triggers.
   The overall trend across 2.5 years of data is downward (lower RMSE = better), but 
   individual runs vary based on what period is being tested ,this is an honest 
   reflection of how time-series evaluation works in practice.
-   ![](/home/keerthana/Desktop/rossman/newplot(2).png)
+   ![](pics/newplot%20(2).png)
 
 - The store-level forecast chart shows the model captures weekly seasonality well 
   (the regular dips to zero on closed days, the consistent weekly rhythm) but tends 
   to underpredict sales on peak days.
-  ![](/home/keerthana/Desktop/rossman/pic.png)
-  
-  ![](/home/keerthana/Desktop/rossman/pic2.png)
+  ![](pics/pic.png)
+
+  ![](pics/pic2.png)
 ---
 
 ## Setup
